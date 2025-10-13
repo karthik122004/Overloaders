@@ -5,8 +5,6 @@
 
   Salam Elbahri (bkd68)
   
-  Erwin  Bofetiado (rmf97)
-  
   Karthik Matli (kwo17)
   
 **Project**:
