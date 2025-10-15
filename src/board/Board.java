@@ -160,7 +160,11 @@ public class Board {
             System.out.print(" " + rank + "  ");
             for (int c = 0; c < 8; c++) {
                 Piece p = grid[r][c];
-                System.out.print((p == null ? "##" : p.code()) + " ");
+                String cell = (p == null)
+                        ? (((r + c) % 2 == 0) ? "##" : "  ")  // dark squares show "##", light squares are blank
+                        : p.code();
+                System.out.print(cell + " ");
+
             }
             System.out.println();
         }

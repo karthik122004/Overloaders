@@ -1,5 +1,5 @@
 package board;
-
+import java.util.Objects;
 /**
  * Represents a position on a chess board.
  * Positions are stored as row and column indices (0-7) corresponding to an 8x8 board.
@@ -80,5 +80,17 @@ public class Position {
         char file = (char) ('A' + col);
         char rank = (char) ('8' - row);
         return "" + file + rank;
+    }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Position)) return false;
+        Position that = (Position) o;
+        return row == that.row && col == that.col;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(row, col);
     }
 }
