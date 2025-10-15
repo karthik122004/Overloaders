@@ -71,7 +71,7 @@ public class Player {
         String line = in.nextLine().trim();
 
         // Allow quitting the game
-        if (line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit"))
+        if (line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit")|| line.equalsIgnoreCase("resign"))
             return false;
 
         // Expecting exactly two coordinates: "E2 E4"

@@ -63,7 +63,12 @@ public class Game {
 
                 // Ask the current player to make a move. If false, the player resigned or quit.
                 boolean proceed = side.makeMove(board, in);
-                if (!proceed) break;
+                if (!proceed) {
+                    String quitter = currentTurn.equals("white") ? "White" : "Black";
+                    String winner = currentTurn.equals("white") ? "Black" : "White";
+                    System.out.println(quitter + " resigns. " + winner + " wins by resignation.");
+                    break;
+                }
 
                 // Switch to the opposite player's turn
                 currentTurn = currentTurn.equals("white") ? "black" : "white";
