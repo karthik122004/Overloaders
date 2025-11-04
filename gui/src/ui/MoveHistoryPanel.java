@@ -1,4 +1,4 @@
-package PACKAGE_NAME;
+package ui;
 
 public class MoveHistoryPanel {
 }

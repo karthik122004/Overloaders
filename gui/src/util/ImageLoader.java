@@ -1,4 +1,4 @@
-package PACKAGE_NAME;
+package util;
 
 public class ImageLoader {
 }
