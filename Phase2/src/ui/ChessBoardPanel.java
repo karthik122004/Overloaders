@@ -4,6 +4,7 @@ import model.BoardState;
 import model.Piece;
 
 import javax.swing.JPanel;
+import javax.swing.JOptionPane;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
