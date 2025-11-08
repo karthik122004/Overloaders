@@ -144,16 +144,19 @@ public class MoveHistoryPanel extends JPanel {
 
     /**
      * Removes the last captured piece of a given color from the display.
-     * @param color "white" or "black"
+     * @param capturedPieceColor "white" or "black"
      */
-    public void removeLastCapture(String color) {
-        if (color.equals("white") && !whiteCaptured.isEmpty()) {
-            whiteCaptured.remove(whiteCaptured.size() - 1);
-        } else if (color.equals("black") && !blackCaptured.isEmpty()) {
+    public void removeLastCapture(String capturedPieceColor) {
+        // If captured piece was white, it's in BLACK's captured list
+        // If captured piece was black, it's in WHITE's captured list
+        if (capturedPieceColor.equals("white") && !blackCaptured.isEmpty()) {
             blackCaptured.remove(blackCaptured.size() - 1);
+        } else if (capturedPieceColor.equals("black") && !whiteCaptured.isEmpty()) {
+            whiteCaptured.remove(whiteCaptured.size() - 1);
         }
         updateCapturedDisplay();
     }
+
 
     /** Clears all move history and captured pieces */
     public void clearHistory() {
