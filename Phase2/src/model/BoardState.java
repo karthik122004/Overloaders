@@ -2,13 +2,25 @@ package model;
 
 import java.io.Serializable;
 
+/**
+ * Represents the current state of the chessboard — all piece positions,
+ * which kings (if any) are captured, and who’s winning.
+ * This class handles setup, movement, and resetting of the board.
+ */
 public class BoardState implements Serializable {
+
+    // The 8x8 chessboard grid (null means no piece on that square)
     private Piece[][] board;
+
+    // True if the white king has been captured
     private boolean whiteKingCaptured = false;
+
+    // True if the black king has been captured
     private boolean blackKingCaptured = false;
 
     /**
-     * Constructor - initializes the board
+     * Creates a new chessboard and places all pieces in their
+     * standard starting positions.
      */
     public BoardState() {
         board = new Piece[8][8];
@@ -16,10 +28,11 @@ public class BoardState implements Serializable {
     }
 
     /**
-     * Places all pieces in their starting positions
+     * Places all chess pieces in their standard starting positions.
+     * Black is at the top (rows 0–1) and white is at the bottom (rows 6–7).
      */
     public void initializeBoard() {
-        // Place black pieces (row 0-1)
+        // Black back row
         board[0][0] = new Piece("black", "rook", 0, 0);
         board[0][1] = new Piece("black", "knight", 0, 1);
         board[0][2] = new Piece("black", "bishop", 0, 2);
@@ -29,15 +42,17 @@ public class BoardState implements Serializable {
         board[0][6] = new Piece("black", "knight", 0, 6);
         board[0][7] = new Piece("black", "rook", 0, 7);
 
+        // Black pawns
         for (int col = 0; col < 8; col++) {
             board[1][col] = new Piece("black", "pawn", 1, col);
         }
 
-        // Place white pieces (row 6-7)
+        // White pawns
         for (int col = 0; col < 8; col++) {
             board[6][col] = new Piece("white", "pawn", 6, col);
         }
 
+        // White back row
         board[7][0] = new Piece("white", "rook", 7, 0);
         board[7][1] = new Piece("white", "knight", 7, 1);
         board[7][2] = new Piece("white", "bishop", 7, 2);
@@ -47,32 +62,37 @@ public class BoardState implements Serializable {
         board[7][6] = new Piece("white", "knight", 7, 6);
         board[7][7] = new Piece("white", "rook", 7, 7);
 
+        // Reset king capture flags
         whiteKingCaptured = false;
         blackKingCaptured = false;
     }
 
     /**
-     * Gets the piece at a specific position
-     * @param row The row index
-     * @param col The column index
-     * @return The Piece at that position, or null if empty
+     * Gets the piece at a given position on the board.
+     *
+     * @param row the row index (0–7)
+     * @param col the column index (0–7)
+     * @return the piece at that square, or null if it's empty or invalid
      */
     public Piece getPieceAt(int row, int col) {
         if (row < 0 || row >= 8 || col < 0 || col >= 8) {
-            return null;
+            return null; // Out of bounds
         }
         return board[row][col];
     }
 
     /**
-     * Moves a piece from one position to another
-     * @param fromRow Starting row
-     * @param fromCol Starting column
-     * @param toRow Destination row
-     * @param toCol Destination column
-     * @return The captured piece, or null if no piece was captured
+     * Moves a piece from one square to another.
+     * Updates capture flags if a king is taken.
+     *
+     * @param fromRow starting row
+     * @param fromCol starting column
+     * @param toRow   destination row
+     * @param toCol   destination column
+     * @return the captured piece, or null if nothing was captured
      */
     public Piece movePiece(int fromRow, int fromCol, int toRow, int toCol) {
+        // Validate move range
         if (fromRow < 0 || fromRow >= 8 || fromCol < 0 || fromCol >= 8 ||
                 toRow < 0 || toRow >= 8 || toCol < 0 || toCol >= 8) {
             return null;
@@ -80,11 +100,13 @@ public class BoardState implements Serializable {
 
         Piece movingPiece = board[fromRow][fromCol];
         if (movingPiece == null) {
-            return null;
+            return null; // Nothing to move
         }
 
-        // Check if capturing a king
+        // Check if a piece is being captured
         Piece capturedPiece = board[toRow][toCol];
+
+        // If the captured piece is a king, mark it as captured
         if (capturedPiece != null && capturedPiece.getType().equals("king")) {
             if (capturedPiece.getColor().equals("white")) {
                 whiteKingCaptured = true;
@@ -93,9 +115,11 @@ public class BoardState implements Serializable {
             }
         }
 
-        // Move the piece
+        // Move the piece to its new position
         board[toRow][toCol] = movingPiece;
         board[fromRow][fromCol] = null;
+
+        // Update the piece's coordinates
         movingPiece.setRow(toRow);
         movingPiece.setCol(toCol);
 
@@ -103,16 +127,20 @@ public class BoardState implements Serializable {
     }
 
     /**
-     * Checks if a king has been captured
-     * @return true if either king was captured
+     * Checks if either king has been captured.
+     *
+     * @return true if any king is captured, false otherwise
      */
     public boolean isKingCaptured() {
         return whiteKingCaptured || blackKingCaptured;
     }
 
     /**
-     * Gets which color won (if any)
-     * @return "Black" if white king captured, "White" if black king captured, null otherwise
+     * Returns the winner of the game based on which king was captured.
+     *
+     * @return "Black" if white king was captured,
+     *         "White" if black king was captured,
+     *         or null if both are still in play
      */
     public String getWinner() {
         if (whiteKingCaptured) return "Black";
@@ -121,7 +149,8 @@ public class BoardState implements Serializable {
     }
 
     /**
-     * Resets the board to starting position
+     * Resets the board to its starting state.
+     * Useful for restarting a game.
      */
     public void resetBoard() {
         board = new Piece[8][8];
@@ -131,18 +160,39 @@ public class BoardState implements Serializable {
     }
 
     /**
-     * Gets the board array
-     * @return 2D array of pieces
+     * Returns the current board layout.
+     *
+     * @return a 2D array representing the chessboard
      */
     public Piece[][] getBoard() {
         return board;
     }
 
     /**
-     * Sets the board array (for loading saved games)
-     * @param board The board to set
+     * Sets the board layout (used when loading a saved game).
+     *
+     * @param board the new board to use
      */
     public void setBoard(Piece[][] board) {
         this.board = board;
+    }
+
+    /**
+     * Creates a deep copy of the current board, including all piece data.
+     * This ensures that modifying the copy doesn’t affect the original.
+     *
+     * @return a new 8x8 array with copies of all pieces
+     */
+    public Piece[][] getBoardCopy() {
+        Piece[][] copy = new Piece[8][8];
+        for (int r = 0; r < 8; r++) {
+            for (int c = 0; c < 8; c++) {
+                if (board[r][c] != null) {
+                    Piece p = board[r][c];
+                    copy[r][c] = new Piece(p.getColor(), p.getType(), r, c);
+                }
+            }
+        }
+        return copy;
     }
 }
