@@ -84,6 +84,6 @@ public class Pawn extends Piece {
      * @return "p" to represent a pawn
      */
     protected String pieceLetter() {
-        return "p";
+        return "P";
     }
 }

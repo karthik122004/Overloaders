@@ -1,23 +1,23 @@
 package ui;
 
-import model.BoardState;
-import model.Piece;
+import board.Board;
+import board.Position;
+import pieces.Piece;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 
-/**
- * Handles the visual and interactive part of the chess board.
- * Draws pieces, listens for mouse actions, and updates the board state when a move is made.
- */
 public class ChessBoardPanel extends JPanel {
-
-    private BoardState boardState;
+    private Board board; // The actual logic board
     private int squareSize = 100;
 
-    // For tracking piece selection and dragging
+    // Game Flow
+    private String currentTurn = "white"; // Track whose turn it is
+
+    // Interaction state
     private int selectedRow = -1;
     private int selectedCol = -1;
     private Piece draggedPiece = null;
@@ -28,22 +28,13 @@ public class ChessBoardPanel extends JPanel {
     private ChessFrame parentFrame;
     private int moveNumber = 0;
 
-    /**
-     * Creates a new chessboard panel and initializes the starting state.
-     *
-     * @param frame the parent ChessFrame that holds this board
-     */
     public ChessBoardPanel(ChessFrame frame) {
         this.parentFrame = frame;
-        boardState = new BoardState();
+        this.board = new Board(); // Initialize the logic board
         setPreferredSize(new Dimension(squareSize * 8, squareSize * 8));
         setupMouseListeners();
     }
 
-    /**
-     * Adds listeners for mouse press, drag, and release events.
-     * This handles both clicking to move and drag-and-drop style moves.
-     */
     private void setupMouseListeners() {
         addMouseListener(new MouseAdapter() {
             @Override
@@ -51,11 +42,14 @@ public class ChessBoardPanel extends JPanel {
                 int row = e.getY() / squareSize;
                 int col = e.getX() / squareSize;
 
-                // Ignore clicks outside the board
-                if (row < 0 || row >= 8 || col < 0 || col >= 8) return;
+                if (!Position.inBounds(row, col)) return;
 
-                draggedPiece = boardState.getPieceAt(row, col);
-                if (draggedPiece != null) {
+                // Use the Board logic to get the piece
+                Piece p = board.getPiece(new Position(row, col));
+
+                // Only allow picking up pieces of the current turn's color
+                if (p != null && p.getColor().equals(currentTurn)) {
+                    draggedPiece = p;
                     dragStartRow = row;
                     dragStartCol = col;
                     dragX = e.getX();
@@ -66,87 +60,46 @@ public class ChessBoardPanel extends JPanel {
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                if (draggedPiece != null && isDragging) {
+                if (draggedPiece != null) {
                     int toRow = e.getY() / squareSize;
                     int toCol = e.getX() / squareSize;
 
-                    // Make sure we release inside the board
-                    if (toRow >= 0 && toRow < 8 && toCol >= 0 && toCol < 8) {
-
-                        // Save game state before moving
-                        if (parentFrame != null) {
-                            Piece capturedPiece = boardState.getPieceAt(toRow, toCol);
-                            parentFrame.recordMove(boardState.getBoardCopy(), dragStartRow, dragStartCol, toRow, toCol, capturedPiece);
-                        }
-
-                        // Move the piece
-                        Piece captured = boardState.movePiece(dragStartRow, dragStartCol, toRow, toCol);
-
-                        // Add move to history panel
-                        if (parentFrame != null) {
-                            moveNumber++;
-                            String pieceType = draggedPiece.getColor() + " " + draggedPiece.getType();
-                            String moveStr = moveNumber + ". " + pieceType + ": (" + dragStartRow + "," + dragStartCol + ") → (" + toRow + "," + toCol + ")";
-                            parentFrame.getHistoryPanel().addMove(moveStr, captured);
-                        }
-
-                        checkKingCapture();
+                    if (isDragging) {
+                        attemptMove(dragStartRow, dragStartCol, toRow, toCol);
                     }
-                }
 
-                // Reset drag state
-                draggedPiece = null;
-                isDragging = false;
-                repaint();
+                    draggedPiece = null;
+                    isDragging = false;
+                    repaint();
+                }
             }
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (isDragging) return; // ignore click during drag
+                if (isDragging) return;
 
                 int row = e.getY() / squareSize;
                 int col = e.getX() / squareSize;
+                if (!Position.inBounds(row, col)) return;
 
-                if (row < 0 || row >= 8 || col < 0 || col >= 8) return;
-
-                // First click selects a piece
                 if (selectedRow == -1) {
-                    Piece piece = boardState.getPieceAt(row, col);
-                    if (piece != null) {
+                    // Select a piece
+                    Piece p = board.getPiece(new Position(row, col));
+                    if (p != null && p.getColor().equals(currentTurn)) {
                         selectedRow = row;
                         selectedCol = col;
                         repaint();
                     }
                 } else {
-                    // Second click moves it
-                    Piece movedPiece = boardState.getPieceAt(selectedRow, selectedCol);
-
-                    // Save game state before moving
-                    if (parentFrame != null && movedPiece != null) {
-                        Piece capturedPiece = boardState.getPieceAt(row, col);
-                        parentFrame.recordMove(boardState.getBoardCopy(), selectedRow, selectedCol, row, col, capturedPiece);
-                    }
-
-                    // Execute move
-                    Piece captured = boardState.movePiece(selectedRow, selectedCol, row, col);
-
-                    // Log move
-                    if (parentFrame != null && movedPiece != null) {
-                        moveNumber++;
-                        String pieceType = movedPiece.getColor() + " " + movedPiece.getType();
-                        String moveStr = moveNumber + ". " + pieceType + ": (" + selectedRow + "," + selectedCol + ") → (" + row + "," + col + ")";
-                        parentFrame.getHistoryPanel().addMove(moveStr, captured);
-                    }
-
+                    // Attempt to move selected piece
+                    attemptMove(selectedRow, selectedCol, row, col);
                     selectedRow = -1;
                     selectedCol = -1;
                     repaint();
-                    checkKingCapture();
                 }
             }
         });
 
-        // Handles dragging visuals
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
@@ -161,103 +114,106 @@ public class ChessBoardPanel extends JPanel {
     }
 
     /**
-     * Checks if a king has been captured and ends the game if so.
+     * Tries to execute a move using the backend Board logic.
      */
-    private void checkKingCapture() {
-        if (boardState.isKingCaptured()) {
-            String winner = boardState.getWinner();
-            JOptionPane.showMessageDialog(this,
-                    winner + " Wins!",
-                    "Game Over",
-                    JOptionPane.INFORMATION_MESSAGE);
-            System.exit(0);
+    private void attemptMove(int fromRow, int fromCol, int toRow, int toCol) {
+        if (!Position.inBounds(toRow, toCol)) return;
+
+        Position start = new Position(fromRow, fromCol);
+        Position end = new Position(toRow, toCol);
+
+        // Check what is at the destination for capture logging BEFORE moving
+        Piece target = board.getPiece(end);
+
+        // 1. Move Validation: calling board.movePiece()
+        boolean success = board.movePiece(start, end);
+
+        if (success) {
+            // Move was valid and executed by the Board
+            moveNumber++;
+
+            // Log to history
+            if (parentFrame != null) {
+                Piece movedPiece = board.getPiece(end); // It's at the new spot now
+                String moveStr = moveNumber + ". " + movedPiece.getColor() + " " + movedPiece.getType() +
+                        ": " + start + " -> " + end;
+                parentFrame.getHistoryPanel().addMove(moveStr, target);
+            }
+
+            // 2. Switch Turn
+            currentTurn = currentTurn.equals("white") ? "black" : "white";
+
+            // 3. Check and Checkmate Detection
+            if (board.isCheckmate(currentTurn)) {
+                repaint();
+                JOptionPane.showMessageDialog(this, "Checkmate! " +
+                        (currentTurn.equals("white") ? "Black" : "White") + " Wins!");
+            } else if (board.isCheck(currentTurn)) {
+                // Optional: Visual feedback for check
+                System.out.println(currentTurn + " is in check!");
+            }
+        } else {
+            System.out.println("Invalid move attempted.");
         }
     }
 
-    /**
-     * Paints the chessboard, pieces, and handles dragging visuals.
-     */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
-        // Smooth edges and text
+        // Antialiasing
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // Draw squares
+        // Draw Board
         for (int row = 0; row < 8; row++) {
             for (int col = 0; col < 8; col++) {
+                // Color squares
                 if ((row + col) % 2 == 0) {
-                    g2d.setColor(new Color(238, 238, 210)); // light square
+                    g2d.setColor(new Color(238, 238, 210));
                 } else {
-                    g2d.setColor(new Color(118, 150, 86));  // dark square
+                    g2d.setColor(new Color(118, 150, 86));
                 }
                 g2d.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
 
-                // Highlight selected square
+                // Highlight selection
                 if (row == selectedRow && col == selectedCol) {
                     g2d.setColor(new Color(255, 255, 0, 100));
                     g2d.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
                 }
-            }
-        }
 
-        // Font for piece symbols
-        Font pieceFont = new Font("Serif", Font.PLAIN, (int)(squareSize * 0.8));
-        g2d.setFont(pieceFont);
-
-        // Draw all non-dragged pieces
-        for (int row = 0; row < 8; row++) {
-            for (int col = 0; col < 8; col++) {
-                Piece piece = boardState.getPieceAt(row, col);
-                if (piece != null && !(isDragging && draggedPiece != null &&
-                        row == dragStartRow && col == dragStartCol)) {
-                    drawPiece(g2d, piece, col * squareSize, row * squareSize);
+                // Draw Pieces (except the one being dragged)
+                Piece p = board.getPiece(new Position(row, col));
+                if (p != null && !(isDragging && draggedPiece == p)) {
+                    drawPiece(g2d, p, col * squareSize, row * squareSize);
                 }
             }
         }
 
-        // Draw the dragged piece last so it stays on top
-        if (draggedPiece != null && isDragging) {
+        // Draw Dragged Piece on top
+        if (isDragging && draggedPiece != null) {
             drawPiece(g2d, draggedPiece, dragX - squareSize / 2, dragY - squareSize / 2);
         }
     }
 
-    /**
-     * Draws a single piece symbol at a given position.
-     */
     private void drawPiece(Graphics2D g2d, Piece piece, int x, int y) {
+        Font pieceFont = new Font("Serif", Font.PLAIN, (int)(squareSize * 0.8));
+        g2d.setFont(pieceFont);
         String symbol = piece.getUnicodeSymbol();
         g2d.setColor(piece.getColor().equals("white") ? Color.WHITE : Color.BLACK);
 
         int textX = x + (squareSize - g2d.getFontMetrics().stringWidth(symbol)) / 2;
         int textY = y + squareSize / 2 + g2d.getFontMetrics().getAscent() / 2 - 5;
-
         g2d.drawString(symbol, textX, textY);
     }
 
-    /** Returns the current board state. */
-    public BoardState getBoardState() {
-        return boardState;
-    }
-
-    /** Replaces the current board with a given one (used for undo or loading). */
-    public void setBoardState(BoardState state) {
-        this.boardState = state;
-        repaint();
-    }
-
-    /** Resets move counter (used when starting a new game). */
-    public void resetMoveNumber() {
+    public void resetGame() {
+        this.board = new Board(); // Create fresh logical board
+        this.currentTurn = "white";
         this.moveNumber = 0;
-    }
-
-    /** Decreases move number by one (used for undo). */
-    public void decrementMoveNumber() {
-        if (moveNumber > 0) {
-            moveNumber--;
-        }
+        this.draggedPiece = null;
+        this.selectedRow = -1;
+        repaint();
     }
 }
