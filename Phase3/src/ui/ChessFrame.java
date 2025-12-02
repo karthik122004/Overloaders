@@ -1,49 +1,79 @@
 package ui;
 
+import board.Board;
+import board.Move;
 import javax.swing.*;
 import java.awt.*;
+import java.io.*;
 
+/**
+ * The main application window for the Chess Game.
+ * Organizes the Board, Menu, and History panels.
+ */
 public class ChessFrame extends JFrame {
     private ChessBoardPanel boardPanel;
     private MenuBarPanel menuBar;
     private MoveHistoryPanel historyPanel;
 
+    /**
+     * Initializes the main frame and its components.
+     */
     public ChessFrame() {
-        setTitle("Chess Game - Integrated Logic");
+        setTitle("Chess Game - Full Logic");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // Menu
         menuBar = new MenuBarPanel();
         setJMenuBar(menuBar);
 
-        // Board
         boardPanel = new ChessBoardPanel(this);
         add(boardPanel, BorderLayout.CENTER);
 
-        // History
         historyPanel = new MoveHistoryPanel();
         add(historyPanel, BorderLayout.EAST);
 
         setupMenuActions();
-
-        // Undo is disabled until Board.java supports state restoration
-        historyPanel.getUndoButton().setEnabled(false);
+        setupUndoAction();
 
         pack();
         setLocationRelativeTo(null);
     }
 
+    /**
+     * Connects menu items to their respective actions.
+     */
     private void setupMenuActions() {
         menuBar.getNewGameItem().addActionListener(e -> newGame());
+        menuBar.getSaveGameItem().addActionListener(e -> saveGame());
+        menuBar.getLoadGameItem().addActionListener(e -> loadGame());
+    }
 
-        menuBar.getSaveGameItem().addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, "Save not supported with current Logic Backend.");
-        });
+    /**
+     * Configures the Undo button behavior.
+     */
+    private void setupUndoAction() {
+        historyPanel.getUndoButton().addActionListener(e -> {
+            Move undoneMove = boardPanel.undo();
+            if (undoneMove != null) {
+                // Restore captured piece to UI
+                if (undoneMove.capturedPiece != null) {
+                    historyPanel.undoCapture(undoneMove.capturedPiece);
+                }
 
-        menuBar.getLoadGameItem().addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, "Load not supported with current Logic Backend.");
+                // Remove last line from history list
+                DefaultListModel<?> model = (DefaultListModel<?>) historyPanel.getMoveList().getModel();
+                if (model.getSize() > 0) {
+                    model.remove(model.getSize() - 1);
+                }
+            }
+
+            // Disable button if no moves left
+            DefaultListModel<?> model = (DefaultListModel<?>) historyPanel.getMoveList().getModel();
+            if (model.getSize() == 0) {
+                historyPanel.getUndoButton().setEnabled(false);
+            }
         });
+        historyPanel.getUndoButton().setEnabled(false);
     }
 
     private void newGame() {
@@ -55,7 +85,35 @@ public class ChessFrame extends JFrame {
         }
     }
 
-    public MoveHistoryPanel getHistoryPanel() {
-        return historyPanel;
+    private void saveGame() {
+        JFileChooser chooser = new JFileChooser();
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = chooser.getSelectedFile();
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
+                oos.writeObject(boardPanel.getBoard());
+                JOptionPane.showMessageDialog(this, "Game Saved!");
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error saving game: " + ex.getMessage());
+            }
+        }
     }
+
+    private void loadGame() {
+        JFileChooser chooser = new JFileChooser();
+        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = chooser.getSelectedFile();
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+                Board loadedBoard = (Board) ois.readObject();
+                boardPanel.setBoard(loadedBoard);
+                historyPanel.clearHistory();
+                JOptionPane.showMessageDialog(this, "Game Loaded!");
+            } catch (IOException | ClassNotFoundException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error loading game: " + ex.getMessage());
+            }
+        }
+    }
+
+    public MoveHistoryPanel getHistoryPanel() { return historyPanel; }
 }

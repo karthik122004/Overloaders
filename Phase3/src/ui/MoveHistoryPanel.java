@@ -1,22 +1,26 @@
 package ui;
 
-// CHANGED: Import the correct Piece class from your logic backend
 import pieces.Piece;
-
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 
+/**
+ * Displays the list of moves made and the collection of captured pieces.
+ */
 public class MoveHistoryPanel extends JPanel {
+
     private DefaultListModel<String> moveListModel;
     private JList<String> moveList;
     private JTextArea capturedWhiteArea;
     private JTextArea capturedBlackArea;
     private JButton undoButton;
+    private ArrayList<Piece> whiteCaptured; // Captured white pieces
+    private ArrayList<Piece> blackCaptured; // Captured black pieces
 
-    private ArrayList<Piece> whiteCaptured;
-    private ArrayList<Piece> blackCaptured;
-
+    /**
+     * Constructs the history panel with lists and buttons.
+     */
     public MoveHistoryPanel() {
         setLayout(new BorderLayout());
         setPreferredSize(new Dimension(250, 800));
@@ -27,7 +31,7 @@ public class MoveHistoryPanel extends JPanel {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
 
-        // Move History
+        // Setup Move History List
         JPanel movePanel = new JPanel(new BorderLayout());
         movePanel.setPreferredSize(new Dimension(250, 400));
         JLabel moveTitle = new JLabel("Move History", JLabel.CENTER);
@@ -39,7 +43,7 @@ public class MoveHistoryPanel extends JPanel {
         JScrollPane moveScroll = new JScrollPane(moveList);
         movePanel.add(moveScroll, BorderLayout.CENTER);
 
-        // Captured Pieces
+        // Setup Captured Pieces Area
         JPanel capturedPanel = new JPanel();
         capturedPanel.setLayout(new BoxLayout(capturedPanel, BoxLayout.Y_AXIS));
         capturedPanel.setPreferredSize(new Dimension(250, 250));
@@ -72,13 +76,12 @@ public class MoveHistoryPanel extends JPanel {
 
         mainPanel.add(movePanel);
         mainPanel.add(capturedPanel);
-
         add(mainPanel, BorderLayout.CENTER);
         add(undoButton, BorderLayout.SOUTH);
     }
 
     private void setupCapturedArea(JTextArea area) {
-        area.setFont(new Font("Serif", Font.PLAIN, 24)); // Slightly larger for symbols
+        area.setFont(new Font("Serif", Font.PLAIN, 24));
         area.setEditable(false);
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
@@ -86,20 +89,40 @@ public class MoveHistoryPanel extends JPanel {
         area.setPreferredSize(new Dimension(230, 80));
     }
 
+    /**
+     * Adds a move record to the display and updates captured piles.
+     *
+     * @param move string description of the move
+     * @param capturedPiece the piece captured (if any)
+     */
     public void addMove(String move, Piece capturedPiece) {
         moveListModel.addElement(move);
         moveList.ensureIndexIsVisible(moveListModel.getSize() - 1);
 
         if (capturedPiece != null) {
             if (capturedPiece.getColor().equals("white")) {
-                // White piece was captured, so it goes to Black's pile
                 blackCaptured.add(capturedPiece);
             } else {
-                // Black piece was captured, so it goes to White's pile
                 whiteCaptured.add(capturedPiece);
             }
             updateCapturedDisplay();
         }
+    }
+
+    /**
+     * Removes a piece from the captured list (used during Undo).
+     *
+     * @param capturedPiece the piece to remove
+     */
+    public void undoCapture(Piece capturedPiece) {
+        if (capturedPiece == null) return;
+
+        if (capturedPiece.getColor().equals("white")) {
+            blackCaptured.remove(capturedPiece);
+        } else {
+            whiteCaptured.remove(capturedPiece);
+        }
+        updateCapturedDisplay();
     }
 
     private void updateCapturedDisplay() {
@@ -116,6 +139,9 @@ public class MoveHistoryPanel extends JPanel {
         capturedBlackArea.setText(blackStr.length() > 0 ? blackStr.toString() : "None");
     }
 
+    /**
+     * Clears all history and captured lists.
+     */
     public void clearHistory() {
         moveListModel.clear();
         whiteCaptured.clear();
@@ -126,5 +152,9 @@ public class MoveHistoryPanel extends JPanel {
 
     public JButton getUndoButton() {
         return undoButton;
+    }
+
+    public JList<String> getMoveList() {
+        return moveList;
     }
 }

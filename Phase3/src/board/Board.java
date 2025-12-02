@@ -1,31 +1,40 @@
 package board;
-import board.*;
+
 import pieces.*;
-
-
-
-
-// Board.java
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.io.Serializable;
 
 /**
- * The Board class represents an 8x8 chess board.
- * It stores all pieces, manages moves, captures, and checks/checkmate logic.
+ * The Board class represents the chessboard and game logic.
+ * It maintains the 8x8 grid of pieces, tracks captured pieces,
+ * and manages the history of moves for undo functionality.
+ * It also handles move validation and detects game-ending conditions.
  */
-public class Board {
-    private Piece[][] grid = new Piece[8][8];      // 8x8 matrix holding pieces
+public class Board implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Piece[][] grid = new Piece[8][8]; // 8x8 matrix holding pieces
     private List<Piece> captured = new ArrayList<>(); // List of captured pieces
+    private Stack<Move> history = new Stack<>(); // Stack to track history for undo
 
     /**
      * Constructor initializes the chess board with all pieces
      * in standard starting positions for white and black.
      */
     public Board() {
-        for (Piece[] row : grid) Arrays.fill(row, null);
+        resetBoard();
+    }
 
-        // Place Black major pieces on rank 8 (row 0)
+    /**
+     * Resets the board to the starting state.
+     * Clears grid, captured pieces, and history, then places pieces.
+     */
+    public void resetBoard() {
+        for (Piece[] row : grid) Arrays.fill(row, null);
+        captured.clear();
+        history.clear();
+
+        // Place Black pieces
         setAt(new Position(0,0), new Rook("black", new Position(0,0)));
         setAt(new Position(0,1), new Knight("black", new Position(0,1)));
         setAt(new Position(0,2), new Bishop("black", new Position(0,2)));
@@ -35,13 +44,13 @@ public class Board {
         setAt(new Position(0,6), new Knight("black", new Position(0,6)));
         setAt(new Position(0,7), new Rook("black", new Position(0,7)));
 
-        // Place Black pawns on rank 7 (row 1)
-        for (int c = 0; c < 8; c++) setAt(new Position(1,c), new Pawn("black", new Position(1,c)));
+        for (int c = 0; c < 8; c++)
+            setAt(new Position(1,c), new Pawn("black", new Position(1,c)));
 
-        // Place White pawns on rank 2 (row 6)
-        for (int c = 0; c < 8; c++) setAt(new Position(6,c), new Pawn("white", new Position(6,c)));
+        // Place White pieces
+        for (int c = 0; c < 8; c++)
+            setAt(new Position(6,c), new Pawn("white", new Position(6,c)));
 
-        // Place White major pieces on rank 1 (row 7)
         setAt(new Position(7,0), new Rook("white", new Position(7,0)));
         setAt(new Position(7,1), new Knight("white", new Position(7,1)));
         setAt(new Position(7,2), new Bishop("white", new Position(7,2)));
@@ -53,48 +62,74 @@ public class Board {
     }
 
     /**
-     * @param position board coordinates
-     * @return the piece located at the given position or null if empty
+     * Retrieves the piece at the specified position.
+     *
+     * @param position coordinates to check
+     * @return the piece at the position, or null if empty
      */
     public Piece getPiece(Position position) {
         return grid[position.getRow()][position.getCol()];
     }
 
     /**
-     * Moves a piece from one position to another if the move is valid.
-     * Handles capturing and prevents self-check.
+     * Moves a piece from one position to another if valid.
+     * Handles capture, move execution, and check prevention.
      *
-     * @param from original position
-     * @param to   desired position
-     * @return true if move was successful, false otherwise
+     * @param from starting position
+     * @param to destination position
+     * @return true if move succeeded, false otherwise
      */
     public boolean movePiece(Position from, Position to) {
         Piece piece = getPiece(from);
-        if (piece == null) return false; // No piece to move
+        if (piece == null) return false;
 
-        // Check if the target location is in the piece's legal moves
+        // Verify if the move is in the piece's legal moves
         boolean allowed = false;
         for (Position p : piece.possibleMoves(this)) {
             if (p.equals(to)) { allowed = true; break; }
         }
-        if (!allowed) return false; // Illegal move
+        if (!allowed) return false;
 
         Piece target = getPiece(to);
-        if (target != null) captured.add(target); // Record capture
 
-        // Perform move
+        // Execute move
         setAt(to, piece);
         setAt(from, null);
 
         // Prevent moving into check
         if (isCheck(piece.getColor())) {
-            // Undo move if it results in check
             setAt(from, piece);
             setAt(to, target);
-            if (target != null) captured.remove(target);
             return false;
         }
+
+        // Commit move
+        if (target != null) captured.add(target);
+        history.push(new Move(from, to, piece, target));
+
         return true;
+    }
+
+    /**
+     * Undoes the last move.
+     * Restores piece positions and any captured pieces.
+     *
+     * @return the Move that was undone, or null if history is empty
+     */
+    public Move undo() {
+        if (history.isEmpty()) return null;
+
+        Move last = history.pop();
+
+        // Restore pieces
+        setAt(last.from, last.movedPiece);
+        setAt(last.to, last.capturedPiece);
+
+        if (last.capturedPiece != null) {
+            captured.remove(last.capturedPiece);
+        }
+
+        return last;
     }
 
     /**
@@ -105,15 +140,15 @@ public class Board {
      */
     public boolean isCheck(String color) {
         Position kingPos = findKing(color);
-        if (kingPos == null) return false; // King missing (should not happen)
+        if (kingPos == null) return false;
 
         String enemy = color.equals("white") ? "black" : "white";
 
-        // Scan all enemy moves to see if any target the king
         for (int r = 0; r < 8; r++) {
             for (int c = 0; c < 8; c++) {
                 Piece p = grid[r][c];
                 if (p == null || !p.getColor().equals(enemy)) continue;
+
                 for (Position d : p.possibleMoves(this)) {
                     if (d.equals(kingPos)) return true;
                 }
@@ -130,49 +165,70 @@ public class Board {
      */
     public boolean isCheckmate(String color) {
         if (!isCheck(color)) return false;
+        return !hasLegalMoves(color);
+    }
 
-        // Try every move for every piece of this color
+    /**
+     * Determines if the game is in a stalemate (draw).
+     * Stalemate occurs when not in check but no legal moves exist.
+     *
+     * @param color the player to evaluate
+     * @return true if stalemate
+     */
+    public boolean isStalemate(String color) {
+        if (isCheck(color)) return false;
+        return !hasLegalMoves(color);
+    }
+
+    /**
+     * Helper to check if any legal move exists for the given color.
+     *
+     * @param color player color
+     * @return true if at least one legal move exists
+     */
+    private boolean hasLegalMoves(String color) {
         for (int r = 0; r < 8; r++) {
             for (int c = 0; c < 8; c++) {
                 Piece p = grid[r][c];
                 if (p == null || !p.getColor().equals(color)) continue;
+
                 Position from = new Position(r, c);
                 for (Position to : p.possibleMoves(this)) {
                     Piece target = getPiece(to);
+
                     setAt(to, p);
                     setAt(from, null);
-                    boolean still = isCheck(color);
-                    // Undo test move
+
+                    boolean stillCheck = isCheck(color);
+
                     setAt(from, p);
                     setAt(to, target);
-                    if (!still) return false;
+
+                    if (!stillCheck) return true;
                 }
             }
         }
-        return true;
-    }
-
-    /** Displays board in ASCII format (console mode). */
-    public void display() {
-        System.out.println("    A  B  C  D  E  F  G  H");
-        for (int r = 0; r < 8; r++) {
-            int rank = 8 - r;
-            System.out.print(" " + rank + "  ");
-            for (int c = 0; c < 8; c++) {
-                Piece p = grid[r][c];
-                String cell = (p == null)
-                        ? (((r + c) % 2 == 0) ? "##" : "  ")  // dark squares show "##", light squares are blank
-                        : p.code();
-                System.out.print(cell + " ");
-
-            }
-            System.out.println();
-        }
-        System.out.println();
+        return false;
     }
 
     /**
-     * Places a piece at a given position and updates its internal coordinates.
+     * Displays board in ASCII format (console mode).
+     */
+    public void display() {
+        System.out.println(" A B C D E F G H");
+        for (int r = 0; r < 8; r++) {
+            System.out.print(" " + (8 - r) + " ");
+            for (int c = 0; c < 8; c++) {
+                Piece p = grid[r][c];
+                String cell = (p == null) ? ((r + c) % 2 == 0 ? "##" : "  ") : p.code();
+                System.out.print(cell + " ");
+            }
+            System.out.println();
+        }
+    }
+
+    /**
+     * Places a piece at a position and updates coordinates.
      */
     private void setAt(Position pos, Piece piece) {
         grid[pos.getRow()][pos.getCol()] = piece;
@@ -183,7 +239,7 @@ public class Board {
      * Finds the king of a given color on the board.
      *
      * @param color color of the king
-     * @return position of the king, null if not found
+     * @return position of the king, or null if not found
      */
     private Position findKing(String color) {
         for (int r = 0; r < 8; r++) {

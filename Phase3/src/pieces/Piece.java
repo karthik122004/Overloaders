@@ -7,38 +7,83 @@ import java.util.List;
 
 /**
  * Abstract class representing a chess piece.
- * Updated to include GUI rendering methods.
+ * Each piece has a color, position, and specific movement rules.
+ * Implements Serializable for saving game state.
  */
 public abstract class Piece implements Serializable {
-    protected String color;
-    protected Position position;
+    private static final long serialVersionUID = 1L;
 
+    protected String color; // "white" or "black"
+    protected Position position; // Current board position
+
+    /**
+     * Constructs a Piece with color and position.
+     *
+     * @param color "white" or "black"
+     * @param position initial position on board
+     */
     public Piece(String color, Position position) {
         this.color = color;
         this.position = position;
     }
 
-    public String getColor() {
-        return color;
-    }
-
-    public Position getPosition() {
-        return position;
-    }
+    /**
+     * @return the color of the piece
+     */
+    public String getColor() { return color; }
 
     /**
-     * Updates the piece's internal position.
+     * @return the current position of the piece
+     */
+    public Position getPosition() { return position; }
+
+    /**
+     * Updates the internal position of the piece.
+     *
+     * @param newPosition the new position
      */
     public void move(Position newPosition) {
         this.position = newPosition;
     }
 
+    /**
+     * Calculates all possible moves for this piece based on board state.
+     *
+     * @param board current board
+     * @return list of legal positions
+     */
     public abstract List<Position> possibleMoves(Board board);
 
+    /**
+     * Returns the notation letter for the piece.
+     *
+     * @return e.g., "K" for King
+     */
     protected abstract String pieceLetter();
 
     /**
-     * Returns the Unicode character for this piece (Used by GUI).
+     * Returns the class name as the type.
+     *
+     * @return e.g., "King", "Rook"
+     */
+    public String getType() {
+        return this.getClass().getSimpleName();
+    }
+
+    /**
+     * Returns a short code representing the piece (color + letter).
+     *
+     * @return e.g., "wK" for White King
+     */
+    public String code() {
+        return (color.equals("white") ? "w" : "b") + pieceLetter();
+    }
+
+    /**
+     * Returns the Unicode character symbol for this piece.
+     * Used for GUI rendering.
+     *
+     * @return Unicode string
      */
     public String getUnicodeSymbol() {
         if (color.equals("white")) {
@@ -62,17 +107,5 @@ public abstract class Piece implements Serializable {
                 default: return "?";
             }
         }
-    }
-
-    /**
-     * Returns the type of the piece (e.g., "King", "Rook") for the history panel.
-     */
-    public String getType() {
-        return this.getClass().getSimpleName();
-    }
-
-    // Helper for the Board logic if needed
-    public String code() {
-        return (color.equals("white") ? "w" : "b") + pieceLetter();
     }
 }
