@@ -19,7 +19,7 @@ public class ChessFrame extends JFrame {
      * Initializes the main frame and its components.
      */
     public ChessFrame() {
-        setTitle("Chess Game - Full Logic");
+        setTitle("Chess");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
