@@ -30,8 +30,9 @@ Follow these instructions to compile and run the project:
 
 1. **Clone the Repository**:  
    ```bash
-   git clone [repository link]
-   cd [repository folder]
+   git clone https://github.com/karthik122004/Overloaders.git
+   cd Overloaders
+   cd Phase3
    ```
 
 2. **Compile the Code**:  
