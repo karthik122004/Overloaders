@@ -37,12 +37,12 @@ Follow these instructions to compile and run the project:
 
 2. **Compile the Code**:  
    ```bash
-   javac -d bin src/*.java
+   javac -d bin -sourcepath src src/Main.java
    ```
 
 3. **Run the Game**:  
    ```bash
-   java -cp bin ChessGame
+   java -cp bin Main
    ```
 
 ---
